@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Send } from 'lucide-react';
 
-const ConsultationChatView = ({ protocol, onEnd, addToast }) => {
+const ConsultationChatView = ({ protocol, onEnd, addToast, metadata = null, consultationData = null, assessmentData = null }) => {
   const [messages, setMessages] = useState([
     { role: 'ai', text: `Hello. I am initialized for the ${protocol} protocol. Please describe the patient's primary symptoms.` }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [durationBand, setDurationBand] = useState('');
+  const [selectedSymptoms, setSelectedSymptoms] = useState([]);
+  const [patientNotes, setPatientNotes] = useState('');
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -35,6 +38,39 @@ const ConsultationChatView = ({ protocol, onEnd, addToast }) => {
       setMessages(prev => [...prev, { role: 'ai', text: randomResponse }]);
       setIsTyping(false);
     }, 1500);
+  };
+
+  // Symptoms form helpers
+  const toggleSymptom = (label) => {
+    setSelectedSymptoms(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]);
+  };
+
+  const submitSymptoms = async () => {
+    if (!consultationData || !consultationData.consultation_id) {
+      addToast?.('No consultation active', 'error');
+      return;
+    }
+
+    if (!durationBand) {
+      addToast?.('Please select duration', 'error');
+      return;
+    }
+
+    const payload = { duration_band: durationBand, symptoms_list: selectedSymptoms, patient_notes: patientNotes };
+
+    try {
+      addToast?.('Submitting symptoms...', 'info');
+      console.info('ConsultationChatView - submitting symptoms', { consultation_id: consultationData.consultation_id, payload });
+      const { updateSymptoms } = await import('../api-helpers/consultation');
+      const res = await updateSymptoms(consultationData.consultation_id, payload);
+      if (!res.success) throw new Error(res.error || 'Failed to submit symptoms');
+      addToast?.('Symptoms submitted', 'success');
+      setMessages(prev => [...prev, { role: 'user', text: `Symptoms: ${selectedSymptoms.join(', ')}; Duration: ${durationBand}` }, { role: 'ai', text: 'Thanks — I will review these and ask any follow-up questions.' }]);
+      // optionally move to next step or show follow-ups
+    } catch (err) {
+      console.error('Submit symptoms failed', err);
+      addToast?.(err.message || 'Failed to submit symptoms', 'error');
+    }
   };
 
   return (
@@ -73,6 +109,50 @@ const ConsultationChatView = ({ protocol, onEnd, addToast }) => {
             </div>
           </div>
         ))}
+
+        {/* Symptoms / questions UI (show when metadata available and no symptoms yet) */}
+        {metadata && (!messages.some(m => m.text && m.text.includes('Symptoms:'))) && (
+          <div className="p-6 bg-slate-900/90 rounded-2xl border border-white/5 w-full max-w-[780px]">
+            <h4 className="text-sm font-semibold text-white mb-2">Clinical questions</h4>
+
+            {/* Duration options */}
+            <div className="mb-4">
+              <p className="text-xs text-slate-300 mb-2">How long have symptoms been present?</p>
+              <div className="flex flex-wrap gap-2">
+                {metadata.enums?.duration_band?.map((opt) => (
+                  <button key={opt} onClick={() => setDurationBand(opt)} className={`px-3 py-2 rounded-lg text-sm ${durationBand===opt ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-200'}`}>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Symptom checkboxes */}
+            <div className="mb-4">
+              <p className="text-xs text-slate-300 mb-2">Select symptoms</p>
+              <div className="grid grid-cols-2 gap-2">
+                {metadata.symptoms_list?.map((s) => (
+                  <label key={s.id || s.label} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${selectedSymptoms.includes(s.label) ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-200 cursor-pointer'}`} onClick={() => toggleSymptom(s.label)}>
+                    <input type="checkbox" checked={selectedSymptoms.includes(s.label)} onChange={() => toggleSymptom(s.label)} className="accent-cyan-500" />
+                    <span>{s.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="mb-4">
+              <p className="text-xs text-slate-300 mb-2">Patient notes</p>
+              <textarea value={patientNotes} onChange={(e) => setPatientNotes(e.target.value)} className="w-full p-3 rounded-lg bg-slate-900 text-slate-200 text-sm h-20" placeholder="e.g. started two days ago, worse at night" />
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={submitSymptoms} className="px-4 py-2 bg-green-600 text-white rounded-lg">Submit symptoms</button>
+              <button onClick={() => { setDurationBand(''); setSelectedSymptoms([]); setPatientNotes(''); }} className="px-4 py-2 bg-slate-700 text-slate-200 rounded-lg">Reset</button>
+            </div>
+          </div>
+        )}
+
         {isTyping && (
           <div className="flex justify-start">
             <div className="bg-slate-800/80 border border-white/5 px-4 py-3 rounded-2xl rounded-tl-sm flex gap-1">

@@ -71,19 +71,35 @@ const BeginAssessmentView = ({ protocol, onComplete, addToast }) => {
         throw new Error("All required fields must be filled");
       }
 
+      // Construct payload to match backend schema (avoid nested `patient` object)
+      // `patient_initials` must be non-null for DB (migration requires non-null).
+      // Prefer deriving initials from logged-in pharmacist name; otherwise fallback to 'XX'.
+      let initials = 'XX';
+      try {
+        const u = JSON.parse(localStorage.getItem('user'));
+        if (u && u.name) {
+          initials = u.name.split(/\s+/).map(n => n[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
+        }
+      } catch (e) { /* ignore */ }
+
       const payload = {
         condition_slug: getConditionSlug(protocol),
-        patient: { age, sex },
-        consent,
+        patient_initials: initials,
+        patient_age: age,
+        patient_sex: sex,
+        consent_given: consent,
       };
 
+      console.info('BeginAssessmentView - calling callInit', { payload });
       const result = await callInit(payload);
 
       if (!result?.success) {
+        console.info('BeginAssessmentView - init failed', { error: result?.error });
         addToast?.(result?.error || "Unable to start consultation", "error");
         return;
       }
 
+      console.info('BeginAssessmentView - init succeeded', { consultation_id: result.data?.consultation_id, consultation_ref: result.data?.consultation_ref });
       addToast?.("Consultation started successfully", "success");
       onComplete?.(updatedAnswers, result.data);
     } catch (error) {
