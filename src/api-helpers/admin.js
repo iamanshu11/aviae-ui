@@ -1,53 +1,47 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://localhost:3000/api/v1";
 
-const ADMIN_KEY_STORAGE = "admin_key";
-
-/* ---------------- ADMIN AUTH ---------------- */
-
-export const adminLoginAPI = async (admin_key) => {
+const ADMIN_TOKEN_STORAGE = "admin_token";
+export const adminLoginAPI = async (credentials) => {
   try {
-    console.info("Frontend: Admin key validation started");
-
-    const response = await fetch(
-      `${API_BASE_URL}/admin/consultations`,
-      {
-        method: "GET",
-        headers: {
-          "x-admin-key": admin_key,
-        },
-      }
-    );
-
+    console.info('Frontend: Admin login started');
+    // credentials can be a string (admin_key) or an object { username, password } or { admin_key }
+    const body = typeof credentials === 'string' ? { admin_key: credentials } : credentials || {};
+    const response = await fetch(`${API_BASE_URL}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
     if (!response.ok) {
-      throw new Error("Invalid admin key");
+      const txt = await response.text().catch(() => 'Invalid credentials');
+      throw new Error(txt || 'Invalid credentials');
     }
-
-    localStorage.setItem(ADMIN_KEY_STORAGE, admin_key);
-
-    console.info("Frontend: Admin key validated successfully");
-    return { success: true };
+    const payload = await response.json();
+    if (!payload.token) throw new Error('No token returned');
+    localStorage.setItem(ADMIN_TOKEN_STORAGE, payload.token);
+    console.info('Frontend: Admin token stored');
+    return { success: true, user: payload.user || null };
   } catch (error) {
-    console.error("Admin Login Error:", error);
+    console.error('Admin Login Error:', error);
     return { success: false, error: error.message };
   }
 };
 
 export const adminLogout = () => {
-  localStorage.removeItem(ADMIN_KEY_STORAGE);
+  localStorage.removeItem(ADMIN_TOKEN_STORAGE);
 };
 
-export const getAdminKey = () => localStorage.getItem(ADMIN_KEY_STORAGE);
-export const isAdminAuthenticated = () => !!getAdminKey();
+export const getAdminToken = () => localStorage.getItem(ADMIN_TOKEN_STORAGE);
+export const isAdminAuthenticated = () => !!getAdminToken();
 
 /* ---------------- INTERNAL HELPER ---------------- */
 
 const getAdminHeaders = () => {
-  const adminKey = getAdminKey();
-  if (!adminKey) throw new Error("Admin not authenticated");
+  const token = getAdminToken();
+  if (!token) throw new Error('Admin not authenticated');
   return {
-    "Content-Type": "application/json",
-    "x-admin-key": adminKey,
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
   };
 };
 

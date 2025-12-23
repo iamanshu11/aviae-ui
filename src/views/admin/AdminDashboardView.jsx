@@ -7,6 +7,7 @@ import {
   listRedFlagsAPI,
   listConsultationsAPI,
 } from "../../api-helpers/admin";
+import CreatePharmacistModal from './CreatePharmacistModal';
 
 export default function AdminDashboardView() {
   const [loading, setLoading] = useState(true);
@@ -16,6 +17,7 @@ export default function AdminDashboardView() {
   const [medications, setMedications] = useState([]);
   const [redFlags, setRedFlags] = useState([]);
   const [consultations, setConsultations] = useState([]);
+  const [showCreate, setShowCreate] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -66,6 +68,15 @@ export default function AdminDashboardView() {
   const handleLogout = () => {
     adminLogout();
     window.location.reload();
+  };
+
+  const refresh = async () => {
+    try {
+      const pharmacistsData = await listPharmacistsAPI();
+      setPharmacists(pharmacistsData);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const StatCard = ({ icon, title, count, color, delay }) => (
@@ -199,6 +210,7 @@ export default function AdminDashboardView() {
               <span className="group-hover:translate-x-1 transition-transform">→</span>
             </span>
           </button>
+          <button onClick={() => setShowCreate(true)} className="ml-3 group relative px-6 py-3 font-bold text-white overflow-hidden rounded-lg bg-purple-600">Add Pharmacist</button>
         </div>
 
         {/* Stats Grid */}
@@ -281,6 +293,15 @@ export default function AdminDashboardView() {
           </div>
         </div>
       </div>
+      {showCreate && (
+        <CreatePharmacistModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => {
+            setShowCreate(false);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

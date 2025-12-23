@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import { adminLoginAPI } from "../../api-helpers/admin";
+import { useState, useRef, useEffect } from 'react';
+import { adminLoginAPI } from '../../api-helpers/admin';
 
 export default function AdminLoginView({ onSuccess }) {
-  const [adminKey, setAdminKey] = useState("");
-  const [error, setError] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isFocused, setIsFocused] = useState(false);
@@ -28,13 +29,14 @@ export default function AdminLoginView({ onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError("");
+    setError('');
 
-    const res = await adminLoginAPI(adminKey);
+    const res = await adminLoginAPI({ username, password });
     setLoading(false);
 
     if (res.success) {
-      onSuccess?.();
+      // pass user info to caller if provided
+      onSuccess?.(res.user || null);
     } else {
       setError(res.error);
     }
@@ -102,24 +104,37 @@ export default function AdminLoginView({ onSuccess }) {
             </div>
 
             {/* Form */}
-            <div onSubmit={handleSubmit} className="space-y-6">
-              {/* Input wrapper */}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Username */}
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-300"></div>
                 <input
-                  type={showPassword ? "text" : "password"}
-                  value={adminKey}
-                  onChange={(e) => setAdminKey(e.target.value)}
-                  placeholder="Enter Admin Key..."
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Admin username"
                   disabled={loading}
-                  className="relative w-full px-4 py-3 pr-12 bg-slate-800 border border-purple-500/30 text-white placeholder-gray-500 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 font-mono tracking-widest"
+                  className="relative w-full px-4 py-3 bg-slate-800 border border-purple-500/30 text-white placeholder-gray-500 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 font-mono"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-300"></div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Admin password"
+                  disabled={loading}
+                  className="relative w-full px-4 py-3 pr-12 bg-slate-800 border border-purple-500/30 text-white placeholder-gray-500 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 font-mono"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-pink-400 transition-colors cursor-pointer"
                 >
-                  {showPassword ? "🔓" : "🔐"}
+                  {showPassword ? '🔓' : '🔐'}
                 </button>
               </div>
 
@@ -135,15 +150,14 @@ export default function AdminLoginView({ onSuccess }) {
 
               {/* Submit button */}
               <button
-                onClick={handleSubmit}
                 disabled={loading}
-                type="button"
+                type="submit"
                 className="relative w-full group overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:shadow-purple-500/50"></div>
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 rounded-lg opacity-0 group-hover:opacity-100 blur transition-opacity duration-300"></div>
                 <div className="relative px-6 py-3 bg-slate-900 rounded-lg font-bold text-white flex items-center justify-center gap-2 group-hover:bg-opacity-90 transition-all duration-300 disabled:opacity-50">
-                  {loading ? (
+                    {loading ? (
                     <>
                       <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
                       <span>AUTHENTICATING...</span>
@@ -160,17 +174,15 @@ export default function AdminLoginView({ onSuccess }) {
               {/* Stats */}
               <div className="grid grid-cols-2 gap-3 mt-8 pt-6 border-t border-purple-500/20">
                 <div className="text-center">
-                  <div className="text-xs text-gray-500 font-mono">KEY LENGTH</div>
-                  <div className="text-lg font-bold text-purple-400">{adminKey.length}</div>
+                  <div className="text-xs text-gray-500 font-mono">USERNAME</div>
+                  <div className="text-lg font-bold text-purple-400">{username || '—'}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-xs text-gray-500 font-mono">STATUS</div>
-                  <div className="text-lg font-bold text-pink-400">
-                    {loading ? "🔄" : "READY"}
-                  </div>
+                  <div className="text-lg font-bold text-pink-400">{loading ? '🔄' : 'READY'}</div>
                 </div>
               </div>
-            </div>
+            </form>
 
             {/* Decorative elements */}
             <div className="mt-8 pt-6 border-t border-purple-500/20">
