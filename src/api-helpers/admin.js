@@ -1,101 +1,109 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:3000/api/v1';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "https://localhost:3000/api/v1";
 
-// Admin Authentication Functions
-export const adminLogin = async (adminKey) => {
+const ADMIN_KEY_STORAGE = "admin_key";
+
+/* ---------------- ADMIN AUTH ---------------- */
+
+export const adminLoginAPI = async (admin_key) => {
   try {
-    // Verify admin key by attempting to fetch pharmacists list
-    const response = await fetch(`${API_BASE_URL}/admin/pharmacists`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': adminKey,
-      },
-      credentials: 'include',
-    });
+    console.info("Frontend: Admin key validation started");
+
+    const response = await fetch(
+      `${API_BASE_URL}/admin/consultations`,
+      {
+        method: "GET",
+        headers: {
+          "x-admin-key": admin_key,
+        },
+      }
+    );
 
     if (!response.ok) {
-      throw new Error('Invalid admin credentials');
+      throw new Error("Invalid admin key");
     }
 
-    // Store admin key in localStorage
-    setAdminToken(adminKey);
+    localStorage.setItem(ADMIN_KEY_STORAGE, admin_key);
+
+    console.info("Frontend: Admin key validated successfully");
     return { success: true };
   } catch (error) {
-    console.error('Admin Login Error:', error);
-    return { success: false, error: error.message || 'Invalid admin credentials' };
+    console.error("Admin Login Error:", error);
+    return { success: false, error: error.message };
   }
-};
-
-export const setAdminToken = (adminKey) => {
-  localStorage.setItem('adminToken', adminKey);
-};
-
-export const getAdminToken = () => {
-  return localStorage.getItem('adminToken');
-};
-
-export const isAdminAuthenticated = () => {
-  return !!localStorage.getItem('adminToken');
 };
 
 export const adminLogout = () => {
-  localStorage.removeItem('adminToken');
+  localStorage.removeItem(ADMIN_KEY_STORAGE);
 };
 
-// Pharmacist Management Functions
-export const createPharmacist = async (pharmacistData) => {
-  try {
-    const adminKey = getAdminToken();
-    
-    if (!adminKey) {
-      throw new Error('Admin authentication required');
-    }
+export const getAdminKey = () => localStorage.getItem(ADMIN_KEY_STORAGE);
+export const isAdminAuthenticated = () => !!getAdminKey();
 
-    const response = await fetch(`${API_BASE_URL}/admin/pharmacists`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': adminKey,
-      },
-      credentials: 'include',
-      body: JSON.stringify(pharmacistData),
-    });
+/* ---------------- INTERNAL HELPER ---------------- */
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create pharmacist');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Error creating pharmacist:', error);
-    throw error;
-  }
+const getAdminHeaders = () => {
+  const adminKey = getAdminKey();
+  if (!adminKey) throw new Error("Admin not authenticated");
+  return {
+    "Content-Type": "application/json",
+    "x-admin-key": adminKey,
+  };
 };
 
-export const getPharmacists = async () => {
-  try {
-    const adminKey = getAdminToken();
-    
-    if (!adminKey) {
-      throw new Error('Admin authentication required');
-    }
+/* ---------------- ADMIN DATA APIS ---------------- */
 
-    const response = await fetch(`${API_BASE_URL}/admin/pharmacists`, {
-      method: 'GET',
-      headers: {
-        'x-admin-key': adminKey,
-      },
-      credentials: 'include',
-    });
+// Pharmacists
+export const createPharmacistAPI = async (payload) => {
+  const res = await fetch(`${API_BASE_URL}/admin/pharmacists`, {
+    method: "POST",
+    headers: getAdminHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to create pharmacist");
+  return res.json();
+};
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch pharmacists');
-    }
+export const listPharmacistsAPI = async () => {
+  const res = await fetch(`${API_BASE_URL}/admin/pharmacists`, {
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch pharmacists");
+  return res.json();
+};
 
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching pharmacists:', error);
-    throw error;
-  }
+// Symptoms
+export const listSymptomsAPI = async () => {
+  const res = await fetch(`${API_BASE_URL}/admin/symptoms`, {
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch symptoms");
+  return res.json();
+};
+
+// Medications
+export const listMedicationsAPI = async () => {
+  const res = await fetch(`${API_BASE_URL}/admin/medications`, {
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch medications");
+  return res.json();
+};
+
+// Red Flags
+export const listRedFlagsAPI = async () => {
+  const res = await fetch(`${API_BASE_URL}/admin/red-flags`, {
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch red flags");
+  return res.json();
+};
+
+// Consultations
+export const listConsultationsAPI = async () => {
+  const res = await fetch(`${API_BASE_URL}/admin/consultations`, {
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to fetch consultations");
+  return res.json();
 };
