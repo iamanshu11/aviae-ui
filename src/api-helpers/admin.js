@@ -54,7 +54,33 @@ export const createPharmacistAPI = async (payload) => {
     headers: getAdminHeaders(),
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error("Failed to create pharmacist");
+  if (!res.ok) {
+    const errText = await res.json().catch(() => ({}));
+    throw new Error(errText.error || "Failed to create pharmacist");
+  }
+  return res.json();
+};
+
+export const updatePharmacistAPI = async (id, payload) => {
+  const res = await fetch(`${API_BASE_URL}/admin/pharmacists/${id}`, {
+    method: 'PUT',
+    headers: getAdminHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const errText = await res.json().catch(() => ({}));
+    throw new Error(errText.error || 'Failed to update pharmacist');
+  }
+  return res.json();
+};
+
+
+export const deletePharmacistAPI = async (id) => {
+  const res = await fetch(`${API_BASE_URL}/admin/pharmacists/${id}`, {
+    method: 'DELETE',
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete pharmacist');
   return res.json();
 };
 
@@ -74,6 +100,32 @@ export const listSymptomsAPI = async () => {
   if (!res.ok) throw new Error("Failed to fetch symptoms");
   return res.json();
 };
+export const createSymptomAPI = async (payload) => {
+  const res = await fetch(`${API_BASE_URL}/admin/symptoms`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to create symptom');
+  return res.json();
+};
+export const updateSymptomAPI = async (id, payload) => {
+  const res = await fetch(`${API_BASE_URL}/admin/symptoms/${id}`, {
+    method: 'PUT',
+    headers: getAdminHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to update symptom');
+  return res.json();
+};
+export const deleteSymptomAPI = async (id) => {
+  const res = await fetch(`${API_BASE_URL}/admin/symptoms/${id}`, {
+    method: 'DELETE',
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete symptom');
+  return res.json();
+};
 
 // Medications
 export const listMedicationsAPI = async () => {
@@ -81,6 +133,32 @@ export const listMedicationsAPI = async () => {
     headers: getAdminHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch medications");
+  return res.json();
+};
+export const createMedicationAPI = async (payload) => {
+  const res = await fetch(`${API_BASE_URL}/admin/medications`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to create medication');
+  return res.json();
+};
+export const updateMedicationAPI = async (id, payload) => {
+  const res = await fetch(`${API_BASE_URL}/admin/medications/${id}`, {
+    method: 'PUT',
+    headers: getAdminHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to update medication');
+  return res.json();
+};
+export const deleteMedicationAPI = async (id) => {
+  const res = await fetch(`${API_BASE_URL}/admin/medications/${id}`, {
+    method: 'DELETE',
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete medication');
   return res.json();
 };
 
@@ -92,6 +170,32 @@ export const listRedFlagsAPI = async () => {
   if (!res.ok) throw new Error("Failed to fetch red flags");
   return res.json();
 };
+export const createRedFlagAPI = async (payload) => {
+  const res = await fetch(`${API_BASE_URL}/admin/red-flags`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to create red flag');
+  return res.json();
+};
+export const updateRedFlagAPI = async (id, payload) => {
+  const res = await fetch(`${API_BASE_URL}/admin/red-flags/${id}`, {
+    method: 'PUT',
+    headers: getAdminHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to update red flag');
+  return res.json();
+};
+export const deleteRedFlagAPI = async (id) => {
+  const res = await fetch(`${API_BASE_URL}/admin/red-flags/${id}`, {
+    method: 'DELETE',
+    headers: getAdminHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete red flag');
+  return res.json();
+};
 
 // Consultations
 export const listConsultationsAPI = async () => {
@@ -99,5 +203,7 @@ export const listConsultationsAPI = async () => {
     headers: getAdminHeaders(),
   });
   if (!res.ok) throw new Error("Failed to fetch consultations");
-  return res.json();
+  const payload = await res.json();
+  // API returns { consultations: [...] }
+  return payload.consultations || [];
 };

@@ -10,6 +10,7 @@ import ConsultationChatView from "../views/ConsultationChatView";
 import ConsultationRecordsView from "../views/ConsultationRecordsView";
 import PatientDetailView from "../views/PatientDetailView";
 import BeginAssessmentView from "../views/BeginAssessmentView";
+import ProfileView from "../views/ProfileView";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -136,14 +137,10 @@ export default function Dashboard() {
             />
           )}
 
-          {/* Fallback */}
-          {!["dashboard", "chat", "records", "patientDetail"].includes(
-            activeTab
-          ) && (
-            <div className="text-gray-600">
-              Current tab: <strong>{activeTab}</strong>
-            </div>
+          {activeTab === "profile" && (
+            <ProfileView />
           )}
+
         </main>
 
         <ToastContainer toasts={toasts} removeToast={removeToast} />

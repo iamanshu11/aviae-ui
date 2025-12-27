@@ -111,11 +111,17 @@ export default function Sidebar({
               className="flex-1 flex items-center gap-3"
             >
               <div className="w-10 h-10 rounded-full bg-[#71BF44] text-white flex items-center justify-center font-bold">
-                DR
+                {(() => {
+                  try {
+                    const u = JSON.parse(localStorage.getItem('user') || '{}');
+                    if (u && u.name) return u.name.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase();
+                  } catch (e) { }
+                  return 'DR';
+                })()}
               </div>
               <div className="text-left">
-                <p className="text-sm text-white font-semibold">Dr. Robert</p>
-                <p className="text-xs text-gray-200">General Physician</p>
+                <p className="text-sm text-white font-semibold">{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u && u.name ? u.name : 'Dr. Robert'; } catch (e) { return 'Dr. Robert'; } })()}</p>
+                <p className="text-xs text-gray-200">{(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u && u.username ? u.username : 'Pharmacist'; } catch (e) { return 'Pharmacist'; } })()}</p>
               </div>
             </button>
 

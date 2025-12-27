@@ -6,8 +6,13 @@ import {
   listMedicationsAPI,
   listRedFlagsAPI,
   listConsultationsAPI,
+  deletePharmacistAPI,
 } from "../../api-helpers/admin";
 import CreatePharmacistModal from './CreatePharmacistModal';
+import SymptomModal from './SymptomModal';
+import MedicationModal from './MedicationModal';
+import RedFlagModal from './RedFlagModal';
+import { deleteSymptomAPI, deleteMedicationAPI, deleteRedFlagAPI } from '../../api-helpers/admin';
 
 export default function AdminDashboardView() {
   const [loading, setLoading] = useState(true);
@@ -18,6 +23,12 @@ export default function AdminDashboardView() {
   const [redFlags, setRedFlags] = useState([]);
   const [consultations, setConsultations] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [showSymptom, setShowSymptom] = useState(false);
+  const [showMedication, setShowMedication] = useState(false);
+  const [showRedFlag, setShowRedFlag] = useState(false);
+  const [editingSymptom, setEditingSymptom] = useState(null);
+  const [editingMedication, setEditingMedication] = useState(null);
+  const [editingRedFlag, setEditingRedFlag] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -199,100 +210,17 @@ export default function AdminDashboardView() {
             <p className="text-slate-400 font-mono">&gt; System Status: All Systems Online</p>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="group relative px-6 py-3 font-bold text-white overflow-hidden rounded-lg"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-pink-600 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-red-500/50"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-pink-600 opacity-0 group-hover:opacity-100 blur transition-opacity duration-300"></div>
-            <span className="relative flex items-center gap-2">
-              <span>Logout</span>
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
-            </span>
-          </button>
+          {/* header controls removed for compact UI; logout is floating */}
+          <div className="hidden"></div>
           <button onClick={() => setShowCreate(true)} className="ml-3 group relative px-6 py-3 font-bold text-white overflow-hidden rounded-lg bg-purple-600">Add Pharmacist</button>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <StatCard
-            icon="💊"
-            title="Pharmacists"
-            count={pharmacists.length}
-            color="from-purple-600 to-blue-600"
-            delay={0}
-          />
-          <StatCard
-            icon="🩺"
-            title="Symptoms"
-            count={symptoms.length}
-            color="from-pink-600 to-purple-600"
-            delay={0.1}
-          />
-          <StatCard
-            icon="💉"
-            title="Medications"
-            count={medications.length}
-            color="from-blue-600 to-cyan-600"
-            delay={0.2}
-          />
-          <StatCard
-            icon="🚨"
-            title="Red Flags"
-            count={redFlags.length}
-            color="from-red-600 to-pink-600"
-            delay={0.3}
-          />
-          <StatCard
-            icon="📞"
-            title="Consultations"
-            count={consultations.length}
-            color="from-cyan-600 to-blue-600"
-            delay={0.4}
-          />
-        </div>
 
-        {/* Summary Info */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-12">
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur opacity-0 group-hover:opacity-75 transition-opacity duration-500"></div>
-            <div className="relative bg-slate-900 border border-slate-700 rounded-xl p-6 group-hover:border-slate-600 transition-all duration-300">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <span>📊</span>
-                System Overview
-              </h3>
-              <div className="space-y-3 text-slate-400">
-                <div className="flex justify-between items-center">
-                  <span>Total Entries</span>
-                  <span className="text-2xl font-bold text-purple-400">
-                    {pharmacists.length + symptoms.length + medications.length + redFlags.length + consultations.length}
-                  </span>
-                </div>
-                <div className="h-px bg-gradient-to-r from-purple-600/20 to-transparent"></div>
-                <p className="text-sm">Active System Modules: 5</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl blur opacity-0 group-hover:opacity-75 transition-opacity duration-500"></div>
-            <div className="relative bg-slate-900 border border-slate-700 rounded-xl p-6 group-hover:border-slate-600 transition-all duration-300">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <span>✅</span>
-                Status
-              </h3>
-              <div className="space-y-3 text-slate-400">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span>All Systems Operational</span>
-                </div>
-                <div className="h-px bg-gradient-to-r from-blue-600/20 to-transparent"></div>
-                <p className="text-sm">Last Updated: Just now</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
+
+      {/* Floating logout (compact) */} 
+      <button onClick={handleLogout} className="fixed left-4 bottom-6 z-50 bg-red-600 text-white px-3 py-2 rounded-full shadow-lg hover:shadow-2xl">Logout</button>
+
       {showCreate && (
         <CreatePharmacistModal
           onClose={() => setShowCreate(false)}
@@ -300,8 +228,130 @@ export default function AdminDashboardView() {
             setShowCreate(false);
             refresh();
           }}
+          initial={showCreate && showCreate.pharmacist ? showCreate.pharmacist : null}
         />
       )}
+
+      {showSymptom && (
+        <SymptomModal
+          initial={editingSymptom}
+          onClose={() => { setShowSymptom(false); setEditingSymptom(null); }}
+          onSaved={async () => { const newList = await listSymptomsAPI(); setSymptoms(newList); }}
+        />
+      )}
+
+      {showMedication && (
+        <MedicationModal
+          initial={editingMedication}
+          onClose={() => { setShowMedication(false); setEditingMedication(null); }}
+          onSaved={async () => { const newList = await listMedicationsAPI(); setMedications(newList); }}
+        />
+      )}
+
+      {showRedFlag && (
+        <RedFlagModal
+          initial={editingRedFlag}
+          onClose={() => { setShowRedFlag(false); setEditingRedFlag(null); }}
+          onSaved={async () => { const newList = await listRedFlagsAPI(); setRedFlags(newList); }}
+        />
+      )}
+      {/* Lists */}
+      <div className="relative z-10 mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+          <h4 className="text-lg font-bold mb-3">Pharmacists</h4>
+          <div className="overflow-auto max-h-64">
+            <table className="w-full text-left text-sm">
+              <thead className="text-slate-400 text-xs uppercase">
+                <tr><th>Name</th><th>Username</th><th>Email</th><th>GPHC</th><th className="text-right">Actions</th></tr>
+              </thead>
+              <tbody>
+                {pharmacists.map((p) => (
+                  <tr key={p.id} className="border-t border-slate-800">
+                    <td className="py-2">{p.name}</td>
+                    <td className="py-2">{p.username || '-'}</td>
+                    <td className="py-2">{p.email || '-'}</td>
+                    <td className="py-2">{p.gphc_number}</td>
+                    <td className="py-2 text-right">
+                      <button onClick={() => setShowCreate({ edit: true, pharmacist: p })} className="text-xs px-2 py-1 bg-purple-600 rounded text-white mr-2">Edit</button>
+                      <button onClick={async () => { if (confirm('Delete this pharmacist?')) { try { await deletePharmacistAPI(p.id); await refresh(); } catch (err) { console.error(err); alert('Delete failed'); } } }} className="text-xs px-2 py-1 bg-red-600 rounded text-white">Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-lg font-bold">Symptoms</h4>
+            <div>
+              <button onClick={() => { setEditingSymptom(null); setShowSymptom(true); }} className="text-xs px-2 py-1 bg-green-600 rounded text-white mr-2">Add</button>
+            </div>
+          </div>
+          <div className="overflow-auto max-h-64">
+            <table className="w-full text-left text-sm">
+              <thead className="text-slate-400 text-xs uppercase"><tr><th>Symptom</th><th className="text-right">Actions</th></tr></thead>
+              <tbody>
+                {symptoms.map(s => (<tr key={s.id} className="border-t border-slate-800"><td className="py-2">{s.symptom_text}</td><td className="py-2 text-right"><button onClick={() => { setEditingSymptom(s); setShowSymptom(true); }} className="text-xs px-2 py-1 bg-purple-600 rounded text-white mr-2">Edit</button><button onClick={async () => { if (confirm('Delete this symptom?')) { try { await deleteSymptomAPI(s.id); const newList = await listSymptomsAPI(); setSymptoms(newList); } catch (err) { console.error(err); alert('Delete failed'); } } }} className="text-xs px-2 py-1 bg-red-600 rounded text-white">Delete</button></td></tr>))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-lg font-bold">Medications</h4>
+            <div>
+              <button onClick={() => { setEditingMedication(null); setShowMedication(true); }} className="text-xs px-2 py-1 bg-green-600 rounded text-white mr-2">Add</button>
+            </div>
+          </div>
+          <div className="overflow-auto max-h-64">
+            <table className="w-full text-left text-sm">
+              <thead className="text-slate-400 text-xs uppercase"><tr><th>Drug</th><th>First line</th><th className="text-right">Actions</th></tr></thead>
+              <tbody>
+                {medications.map(m => (<tr key={m.id} className="border-t border-slate-800"><td className="py-2">{m.drug_name}</td><td className="py-2">{m.is_first_line ? 'Yes' : 'No'}</td><td className="py-2 text-right"><button onClick={() => { setEditingMedication(m); setShowMedication(true); }} className="text-xs px-2 py-1 bg-purple-600 rounded text-white mr-2">Edit</button><button onClick={async () => { if (confirm('Delete this medication?')) { try { await deleteMedicationAPI(m.id); const newList = await listMedicationsAPI(); setMedications(newList); } catch (err) { console.error(err); alert('Delete failed'); } } }} className="text-xs px-2 py-1 bg-red-600 rounded text-white">Delete</button></td></tr>))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-700 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-lg font-bold">Red Flags</h4>
+            <div>
+              <button onClick={() => { setEditingRedFlag(null); setShowRedFlag(true); }} className="text-xs px-2 py-1 bg-green-600 rounded text-white mr-2">Add</button>
+            </div>
+          </div>
+          <div className="overflow-auto max-h-64">
+            <table className="w-full text-left text-sm">
+              <thead className="text-slate-400 text-xs uppercase"><tr><th>Code</th><th>Question</th><th>Severity</th><th className="text-right">Actions</th></tr></thead>
+              <tbody>
+                {redFlags.map(r => (<tr key={r.id} className="border-t border-slate-800"><td className="py-2">{r.question_code}</td><td className="py-2">{r.question_text}</td><td className="py-2">{r.severity}</td><td className="py-2 text-right"><button onClick={() => { setEditingRedFlag(r); setShowRedFlag(true); }} className="text-xs px-2 py-1 bg-purple-600 rounded text-white mr-2">Edit</button><button onClick={async () => { if (confirm('Delete this red flag?')) { try { await deleteRedFlagAPI(r.id); const newList = await listRedFlagsAPI(); setRedFlags(newList); } catch (err) { console.error(err); alert('Delete failed'); } } }} className="text-xs px-2 py-1 bg-red-600 rounded text-white">Delete</button></td></tr>))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 lg:col-span-2">
+          <h4 className="text-lg font-bold mb-3">Consultations</h4>
+          <div className="overflow-auto max-h-64">
+            <table className="w-full text-left text-sm">
+              <thead className="text-slate-400 text-xs uppercase"><tr><th>Ref</th><th>Pharmacist</th><th>Status</th><th>Started</th></tr></thead>
+              <tbody>
+                {(Array.isArray(consultations) ? consultations : []).map(c => (
+                  <tr key={c.id} className="border-t border-slate-800">
+                    <td className="py-2">{c.consultation_ref}</td>
+                    <td className="py-2">{c.pharmacist_id}</td>
+                    <td className="py-2">{c.status}</td>
+                    <td className="py-2">{c.started_at ? new Date(c.started_at).toLocaleString() : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
