@@ -164,12 +164,16 @@ export default function AdminLoginView({ onSuccess }) {
                     </>
                   ) : (
                     <>
-                      <span>GRANT ACCESS</span>
+                      <span>SIGN IN</span>
                       <span className="group-hover:translate-x-1 transition-transform">→</span>
                     </>
                   )}
                 </div>
               </button>
+
+              <a href="/" className="block text-center text-green-700 hover:text-green-900 text-xs sm:text-sm mt-2 sm:mt-3">
+                User Login
+              </a>
 
               {/* Stats */}
               <div className="grid grid-cols-2 gap-3 mt-8 pt-6 border-t border-purple-500/20">

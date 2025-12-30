@@ -35,7 +35,7 @@ export default function Sidebar({
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: <Home size={18} /> },
-    { id: "patients", label: "Patients", icon: <Users size={18} /> },
+    // { id: "patients", label: "Patients", icon: <Users size={18} /> },
     { id: "records", label: "Consultations", icon: <FileText size={18} /> },
     {
       id: "begin-assessment",

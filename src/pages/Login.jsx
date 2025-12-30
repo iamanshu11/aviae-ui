@@ -185,6 +185,10 @@ export default function Login() {
                             <span className="relative z-10">{loading ? "Signing in..." : "Sign in"}</span>
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 group-hover:translate-x-full transition-transform duration-700"></div>
                         </button>
+
+                        <a href="/admin" className="block text-center text-green-700 hover:text-green-900 text-xs sm:text-sm mt-2 sm:mt-3">
+                            Admin Login
+                        </a>
                     </div>
 
                 </div>

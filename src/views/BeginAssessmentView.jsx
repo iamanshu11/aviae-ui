@@ -136,7 +136,7 @@ const BeginAssessmentView = ({ protocol, onComplete, addToast }) => {
         </div>
       </div>
 
-      <div className="flex-1 p-10">
+      <div className="flex-1 p-10 overflow-scroll md:overflow-auto custom-scrollbar">
         <h3 className="text-2xl font-bold text-white mb-2">{current.title}</h3>
         <p className="text-sm text-slate-400 mb-8">{current.subtitle}</p>
 
