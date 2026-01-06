@@ -3,20 +3,32 @@ import { ClipboardList, ArrowLeft, CheckCircle } from "lucide-react";
 import { getMetadata, callInit } from "../api-helpers/consultation";
 
 const QUESTIONS = [
-  { id: "age", title: "Select Patient Age", subtitle: "This helps us personalize the consultation", options: ["0–06", "07–12", "13–18", "19–40", "41–60", "60+"] },
-  { id: "gender", title: "Select Gender", subtitle: "Used for clinical relevance", options: ["Male", "Female", "Other", "Prefer not to say"] },
-  { id: "concern", title: "Primary Health Concern", subtitle: "Choose the closest match", options: ["General Health", "Fever / Flu", "Pain or Injury", "Skin Issues", "Mental Health", "Other"] },
+  {
+    id: "age",
+    title: "Enter Patient Age",
+    subtitle: "Please enter the patient’s age in completed years",
+    type: "number",
+  },
+  {
+    id: "gender",
+    title: "Select Gender",
+    subtitle: "Used for clinical relevance",
+    options: ["Male", "Female", "Other", "Prefer not to say"],
+  },
+  {
+    id: "concern",
+    title: "Primary Health Concern",
+    subtitle: "Choose the closest match",
+    options: [
+      "General Health",
+      "Fever / Flu",
+      "Pain or Injury",
+      "Skin Issues",
+      "Mental Health",
+      "Other",
+    ],
+  },
 ];
-
-// Backend-safe numeric ages
-const AGE_MAP = {
-  "0–06": 3,
-  "07–12": 10,
-  "13–18": 16,
-  "19–40": 30,
-  "41–60": 50,
-  "60+": 65,
-};
 
 const BeginAssessmentView = ({ protocol, onComplete, addToast }) => {
   const [step, setStep] = useState(0);
@@ -34,7 +46,10 @@ const BeginAssessmentView = ({ protocol, onComplete, addToast }) => {
       "Stomach Pain": "stomach-pain",
       "Body Pain": "body-pain",
     };
-    return protocolMap[protocolName] || protocolName.toLowerCase().replace(/\s+/g, "-");
+    return (
+      protocolMap[protocolName] ||
+      protocolName.toLowerCase().replace(/\s+/g, "-")
+    );
   };
 
   useEffect(() => {
@@ -47,6 +62,23 @@ const BeginAssessmentView = ({ protocol, onComplete, addToast }) => {
     fetchMetadata();
   }, [protocol]);
 
+  const goNext = () => {
+    if (step < QUESTIONS.length - 1) {
+      setStep((s) => s + 1);
+    }
+  };
+
+  const handleAgeSubmit = () => {
+    const age = Number(answers.age);
+
+    if (!age || age < 1 || age > 120) {
+      addToast?.("Please enter a valid age between 1 and 120", "error");
+      return;
+    }
+
+    goNext();
+  };
+
   const handleSelect = async (value) => {
     if (isInitializing) return;
 
@@ -54,7 +86,7 @@ const BeginAssessmentView = ({ protocol, onComplete, addToast }) => {
     setAnswers(updatedAnswers);
 
     if (step < QUESTIONS.length - 1) {
-      setTimeout(() => setStep((s) => s + 1), 300);
+      setTimeout(goNext, 200);
       return;
     }
 
@@ -62,48 +94,46 @@ const BeginAssessmentView = ({ protocol, onComplete, addToast }) => {
     try {
       setIsInitializing(true);
 
-      const age = AGE_MAP[updatedAnswers.age];
+      const age = Number(updatedAnswers.age);
       const sex = updatedAnswers.gender;
-      const consent = true; // explicitly required by backend
+      const consent = true;
 
-      // Validate required fields
       if (!age || !sex || typeof consent !== "boolean") {
         throw new Error("All required fields must be filled");
       }
 
-      // Construct payload to match backend schema (avoid nested `patient` object)
-      // `patient_initials` must be non-null for DB (migration requires non-null).
-      // Prefer deriving initials from logged-in pharmacist name; otherwise fallback to 'XX'.
-      let initials = 'XX';
+      let initials = "XX";
       try {
-        const u = JSON.parse(localStorage.getItem('user'));
-        if (u && u.name) {
-          initials = u.name.split(/\s+/).map(n => n[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
+        const u = JSON.parse(localStorage.getItem("user"));
+        if (u?.name) {
+          initials = u.name
+            .split(/\s+/)
+            .map((n) => n[0])
+            .filter(Boolean)
+            .slice(0, 2)
+            .join("")
+            .toUpperCase();
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) {}
 
       const payload = {
         condition_slug: getConditionSlug(protocol),
         patient_initials: initials,
-        patient_age: age,
+        patient_age: age, // ✅ exact numeric age
         patient_sex: sex,
         consent_given: consent,
       };
 
-      console.info('BeginAssessmentView - calling callInit', { payload });
       const result = await callInit(payload);
 
       if (!result?.success) {
-        console.info('BeginAssessmentView - init failed', { error: result?.error });
         addToast?.(result?.error || "Unable to start consultation", "error");
         return;
       }
 
-      console.info('BeginAssessmentView - init succeeded', { consultation_id: result.data?.consultation_id, consultation_ref: result.data?.consultation_ref });
       addToast?.("Consultation started successfully", "success");
       onComplete?.(updatedAnswers, result.data);
     } catch (error) {
-      console.error(error);
       addToast?.(error.message || "Failed to start consultation", "error");
     } finally {
       setIsInitializing(false);
@@ -112,6 +142,7 @@ const BeginAssessmentView = ({ protocol, onComplete, addToast }) => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] max-w-5xl mx-auto bg-[#0A0F1E]/90 backdrop-blur-xl rounded-[2.5rem] border border-white/5 overflow-hidden">
+      {/* Header */}
       <div className="px-8 py-5 border-b border-white/10 bg-[#0F1623]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -119,38 +150,91 @@ const BeginAssessmentView = ({ protocol, onComplete, addToast }) => {
               <ClipboardList size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Consultation Assessment</h2>
-              <p className="text-xs text-slate-400">Step {step + 1} of {QUESTIONS.length}</p>
+              <h2 className="text-lg font-bold text-white">
+                Consultation Assessment
+              </h2>
+              <p className="text-xs text-slate-400">
+                Step {step + 1} of {QUESTIONS.length}
+              </p>
             </div>
           </div>
 
           {step > 0 && (
-            <button onClick={() => setStep((s) => s - 1)} className="flex items-center gap-2 text-xs text-slate-300 hover:text-white">
+            <button
+              onClick={() => setStep((s) => s - 1)}
+              className="flex items-center gap-2 text-xs text-slate-300 hover:text-white"
+            >
               <ArrowLeft size={14} /> Back
             </button>
           )}
         </div>
 
         <div className="mt-4 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all" style={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} />
+          <div
+            className="h-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all"
+            style={{
+              width: `${((step + 1) / QUESTIONS.length) * 100}%`,
+            }}
+          />
         </div>
       </div>
 
-      <div className="flex-1 p-10 overflow-scroll md:overflow-auto custom-scrollbar">
-        <h3 className="text-2xl font-bold text-white mb-2">{current.title}</h3>
-        <p className="text-sm text-slate-400 mb-8">{current.subtitle}</p>
+      {/* Content */}
+      <div className="flex-1 p-10 overflow-auto custom-scrollbar">
+        <h3 className="text-2xl font-bold text-white mb-2">
+          {current.title}
+        </h3>
+        <p className="text-sm text-slate-400 mb-8">
+          {current.subtitle}
+        </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {current.options.map((opt) => {
-            const selected = answers[current.id] === opt;
-            return (
-              <button key={opt} onClick={() => handleSelect(opt)} disabled={isInitializing} className={`flex items-center justify-between px-6 py-4 rounded-2xl border transition-all ${selected ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-transparent" : "bg-slate-900/70 border-slate-700 text-slate-200 hover:border-cyan-500/50"}`}>
-                <span className="text-sm font-medium">{opt}</span>
-                {selected && <CheckCircle size={18} />}
-              </button>
-            );
-          })}
-        </div>
+        {/* AGE INPUT */}
+        {current.type === "number" && (
+          <div className="max-w-sm space-y-6">
+            <input
+              type="number"
+              min={1}
+              max={120}
+              value={answers.age || ""}
+              onChange={(e) =>
+                setAnswers({ ...answers, age: e.target.value })
+              }
+              placeholder="Enter age in years"
+              className="w-full px-5 py-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white focus:outline-none focus:border-cyan-500"
+            />
+
+            <button
+              onClick={handleAgeSubmit}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-semibold"
+            >
+              Continue
+            </button>
+          </div>
+        )}
+
+        {/* OPTION BUTTONS */}
+        {current.options && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {current.options.map((opt) => {
+              const selected = answers[current.id] === opt;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => handleSelect(opt)}
+                  disabled={isInitializing}
+                  className={`flex items-center justify-between px-6 py-4 rounded-2xl border transition-all ${
+                    selected
+                      ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-transparent"
+                      : "bg-slate-900/70 border-slate-700 text-slate-200 hover:border-cyan-500/50"
+                  }`}
+                >
+                  <span className="text-sm font-medium">{opt}</span>
+                  {selected && <CheckCircle size={18} />}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

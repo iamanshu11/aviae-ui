@@ -10,6 +10,7 @@ export const loginAPI = async (gphc_number, password) => {
       },
       credentials: "include",
       body: JSON.stringify({ gphc_number, password }),
+      
     });
 
     if (!response.ok) {
@@ -18,10 +19,29 @@ export const loginAPI = async (gphc_number, password) => {
       throw new Error(errorData.message || "Invalid credentials");
     }
 
-    const data = await response.json();
-    // Avoid logging tokens in full, just confirm presence
-    console.info('Frontend: POST /api/v1/auth/login - response', { status: response.status, user: data.user ? { id: data.user.id, name: data.user.name } : null, token_present: !!data.token });
-    return { success: true, data };
+    
+   const data = await response.json();
+
+// ✅ STORE TOKEN + USER
+if (data.token) {
+  setAuthToken(data.token);
+}
+
+if (data.user) {
+  localStorage.setItem("user", JSON.stringify(data.user));
+}
+
+console.info(
+  "Frontend: POST /api/v1/auth/login - response",
+  {
+    status: response.status,
+    user: data.user ? { id: data.user.id, name: data.user.name } : null,
+    token_present: !!data.token,
+  }
+);
+
+return { success: true, data };
+
   } catch (error) {
     console.error("Login API Error:", error);
     

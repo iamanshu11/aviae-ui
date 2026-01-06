@@ -20,6 +20,8 @@ const ConsultationChatView = ({
   /* ---------------- Progress ---------------- */
   // 0: Symptoms, 1: Red Flags, 2: History, 3: Outcome
   const [progressStep, setProgressStep] = useState(0);
+  const [loadingSoap, setLoadingSoap] = useState(false);
+
 
   // Step state: 0 = Symptoms, 1 = Red Flags, 2 = History, 3 = Outcome/Finalize
   const [durationBand, setDurationBand] = useState("");
@@ -38,6 +40,8 @@ const ConsultationChatView = ({
   const [soapNote, setSoapNote] = useState(null);
   const [finalized, setFinalized] = useState(false);
   const [showPostActions, setShowPostActions] = useState(false);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
+
 
   const messagesEndRef = useRef(null);
   useEffect(
@@ -126,8 +130,16 @@ const ConsultationChatView = ({
   /* ---------------- Submit History ---------------- */
   const submitHistory = async () => {
     try {
-      const { updateHistory, getOutcome, finalizeConsultation, getSoapNote } =
-        await import("../api-helpers/consultation");
+      setProgressStep(3);
+      setLoadingSoap(true); // 👈 START LOADER
+
+      const {
+        updateHistory,
+        getOutcome,
+        finalizeConsultation,
+        getSoapNote,
+      } = await import("../api-helpers/consultation");
+
       await updateHistory(consultationData.consultation_id, {
         current_meds: historyAnswers.current_meds,
         conditions: historyAnswers.conditions,
@@ -139,29 +151,79 @@ const ConsultationChatView = ({
         recent_antibiotics: historyAnswers.recent_antibiotics,
         recent_assessment: historyAnswers.recent_assessment,
       });
-      setProgressStep(3);
-      // Fetch outcome
+
+      // Outcome
       const outcomeRes = await getOutcome(consultationData.consultation_id);
       setOutcome(outcomeRes.data);
+
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          text: `Outcome: ${
-            outcomeRes.data?.title || outcomeRes.data?.decision_code
-          }`,
+          text: "Analyzing your responses and generating clinical summary…",
         },
       ]);
+
       // Finalize
       await finalizeConsultation(consultationData.consultation_id);
       setFinalized(true);
-      // Fetch SOAP note (store full soap object when available)
+
+      // SOAP
       const soapRes = await getSoapNote(consultationData.consultation_id);
       const soapObj = soapRes.data?.soap || soapRes.data?.summary || null;
       setSoapNote(soapObj);
+
       setShowPostActions(true);
     } catch (e) {
       addToast?.(e.message, "error");
+    } finally {
+      setLoadingSoap(false); // 👈 STOP LOADER
+    }
+  };
+
+
+  /* ---------------- Download PDF ---------------- */
+  const handleDownloadPDF = async () => {
+    setPdfDownloading(true);
+    try {
+      const { generatePDF, downloadPDF } = await import(
+        "../api-helpers/consultation"
+      );
+
+      // Step 1: Generate PDF (if not already generated)
+      const generateResult = await generatePDF(
+        consultationData.consultation_id
+      );
+
+      // If generation failed due to SOAP note not found, show error
+      if (!generateResult.success) {
+        if (generateResult.error?.includes("SOAP note not found")) {
+          addToast?.(
+            "SOAP note not found. Please generate SOAP note first.",
+            "error"
+          );
+          return;
+        }
+        // For other errors (like PDF already exists), continue to download
+      }
+
+      // Step 2: Download PDF
+      const downloadResult = await downloadPDF(
+        consultationData.consultation_id
+      );
+
+      if (downloadResult.success) {
+        addToast?.("PDF downloaded successfully!", "success");
+      } else {
+        addToast?.(
+          downloadResult.error || "Failed to download PDF",
+          "error"
+        );
+      }
+    } catch (e) {
+      addToast?.(e.message || "Failed to download PDF", "error");
+    } finally {
+      setPdfDownloading(false);
     }
   };
 
@@ -173,16 +235,14 @@ const ConsultationChatView = ({
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`flex ${
-              m.role === "user" ? "justify-end" : "justify-start"
-            }`}
+            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"
+              }`}
           >
             <div
-              className={`p-4 rounded-xl max-w-[80%] text-sm ${
-                m.role === "user"
+              className={`p-4 rounded-xl max-w-[80%] text-sm ${m.role === "user"
                   ? "bg-cyan-600 text-white"
                   : "bg-slate-800 text-slate-200"
-              }`}
+                }`}
             >
               {m.text}
             </div>
@@ -193,24 +253,20 @@ const ConsultationChatView = ({
         <div className="w-full mb-4 sticky top-0 z-10 bg-[#0A0F1E]">
           <div className="flex items-center gap-2 mb-1">
             <div
-              className={`flex-1 h-2 rounded ${
-                progressStep >= 0 ? "bg-cyan-500" : "bg-slate-700"
-              }`}
+              className={`flex-1 h-2 rounded ${progressStep >= 0 ? "bg-cyan-500" : "bg-slate-700"
+                }`}
             ></div>
             <div
-              className={`flex-1 h-2 rounded ${
-                progressStep >= 1 ? "bg-rose-500" : "bg-slate-700"
-              }`}
+              className={`flex-1 h-2 rounded ${progressStep >= 1 ? "bg-rose-500" : "bg-slate-700"
+                }`}
             ></div>
             <div
-              className={`flex-1 h-2 rounded ${
-                progressStep >= 2 ? "bg-amber-500" : "bg-slate-700"
-              }`}
+              className={`flex-1 h-2 rounded ${progressStep >= 2 ? "bg-amber-500" : "bg-slate-700"
+                }`}
             ></div>
             <div
-              className={`flex-1 h-2 rounded ${
-                progressStep >= 3 ? "bg-emerald-500" : "bg-slate-700"
-              }`}
+              className={`flex-1 h-2 rounded ${progressStep >= 3 ? "bg-emerald-500" : "bg-slate-700"
+                }`}
             ></div>
           </div>
           <div className="flex justify-between text-xs text-slate-400">
@@ -236,11 +292,10 @@ const ConsultationChatView = ({
                   <button
                     key={d}
                     onClick={() => setDurationBand(d)}
-                    className={`px-3 py-2 rounded ${
-                      durationBand === d
+                    className={`px-3 py-2 rounded ${durationBand === d
                         ? "bg-cyan-600 text-white"
                         : "bg-slate-800 text-slate-200"
-                    }`}
+                      }`}
                   >
                     {d}
                   </button>
@@ -253,11 +308,10 @@ const ConsultationChatView = ({
               {metadata.symptoms_list?.map((s) => (
                 <label
                   key={s.label}
-                  className={`flex gap-2 p-2 rounded cursor-pointer ${
-                    selectedSymptoms.includes(s.label)
+                  className={`flex gap-2 p-2 rounded cursor-pointer ${selectedSymptoms.includes(s.label)
                       ? "bg-cyan-600 text-white"
                       : "bg-slate-800 text-slate-200"
-                  }`}
+                    }`}
                   onClick={() => toggleSymptom(s.label)}
                 >
                   <input
@@ -288,7 +342,7 @@ const ConsultationChatView = ({
 
         {/* Red Flags UI - only show if on step 1 */}
         {progressStep === 1 && metadata && (
-          <div className="p-6 bg-red-900/40 rounded-2xl border border-red-600/60">
+          <div className="p-6 bg-slate-900 rounded-2xl border border-white/5">
             <h4 className="flex items-center gap-2 text-red-500 mb-4">
               <AlertTriangle size={18} /> Please answer the following safety
               questions
@@ -308,21 +362,19 @@ const ConsultationChatView = ({
                 <div className="flex gap-2">
                   <button
                     onClick={() => setRedFlagAnswer(rf.code, true)}
-                    className={`px-3 py-1 rounded ${
-                      redFlags[rf.code] === true
+                    className={`px-3 py-1 rounded ${redFlags[rf.code] === true
                         ? "bg-rose-600 text-white"
                         : "bg-slate-500"
-                    }`}
+                      }`}
                   >
                     Yes
                   </button>
                   <button
                     onClick={() => setRedFlagAnswer(rf.code, false)}
-                    className={`px-3 py-1 rounded ${
-                      redFlags[rf.code] === false
+                    className={`px-3 py-1 rounded ${redFlags[rf.code] === false
                         ? "bg-emerald-600 text-white"
                         : "bg-slate-500"
-                    }`}
+                      }`}
                   >
                     No
                   </button>
@@ -332,11 +384,10 @@ const ConsultationChatView = ({
             <button
               onClick={submitRedFlags}
               disabled={!isRedFlagsComplete}
-              className={`mt-4 px-4 py-2 rounded ${
-                isRedFlagsComplete
+              className={`mt-4 px-4 py-2 rounded ${isRedFlagsComplete
                   ? "bg-rose-600 text-white"
                   : "bg-slate-700 text-slate-400 cursor-not-allowed"
-              }`}
+                }`}
             >
               Continue
             </button>
@@ -394,11 +445,10 @@ const ConsultationChatView = ({
               </label>
               <div className="flex gap-3 mb-2">
                 <button
-                  className={`px-3 py-1 rounded ${
-                    historyAnswers.allergies_present === "yes"
+                  className={`px-3 py-1 rounded ${historyAnswers.allergies_present === "yes"
                       ? "bg-rose-600 text-white"
                       : "bg-slate-800 text-slate-200"
-                  }`}
+                    }`}
                   onClick={() =>
                     setHistoryAnswers((a) => ({
                       ...a,
@@ -409,11 +459,10 @@ const ConsultationChatView = ({
                   Yes
                 </button>
                 <button
-                  className={`px-3 py-1 rounded ${
-                    historyAnswers.allergies_present === "no"
+                  className={`px-3 py-1 rounded ${historyAnswers.allergies_present === "no"
                       ? "bg-emerald-600 text-white"
                       : "bg-slate-800 text-slate-200"
-                  }`}
+                    }`}
                   onClick={() =>
                     setHistoryAnswers((a) => ({
                       ...a,
@@ -498,6 +547,29 @@ const ConsultationChatView = ({
           </div>
         )}
 
+        {progressStep === 3 && loadingSoap && (
+          <div className="p-6 bg-slate-900 rounded-2xl border border-cyan-500/30 animate-pulse">
+            <div className="flex items-center gap-3 mb-4">
+              <Bot className="text-cyan-400" />
+              <span className="text-cyan-400 font-semibold">
+                Avaie is generating your consultation summary
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="h-4 bg-slate-700 rounded w-3/4"></div>
+              <div className="h-4 bg-slate-700 rounded w-full"></div>
+              <div className="h-4 bg-slate-700 rounded w-5/6"></div>
+              <div className="h-4 bg-slate-700 rounded w-2/3"></div>
+            </div>
+
+            <p className="text-xs text-slate-400 mt-4">
+              Please wait, this may take a few seconds…
+            </p>
+          </div>
+        )}
+
+
         {/* Final SOAP and Download UI - only show if on step 3 and finalized */}
         {progressStep === 3 && finalized && showPostActions && (
           <div className="p-6 bg-slate-900 rounded-2xl border border-emerald-500/30 mt-4">
@@ -580,24 +652,15 @@ const ConsultationChatView = ({
             <div className="w-full">
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:items-center">
                 <div className="w-full sm:w-auto">
-                  <a
-                    href={`${
-                      import.meta.env.VITE_API_BASE_URL ||
-                      "https://localhost:3000/api/v1"
-                    }/consultations/${
-                      consultationData.consultation_id
-                    }/download-pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded w-full sm:w-auto"
+                  <button
+                    onClick={handleDownloadPDF}
+                    disabled={pdfDownloading}
+                    className={`inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded w-full sm:w-auto ${pdfDownloading
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-emerald-700"
+                      }`}
                   >
-                    Download PDF
-                  </a>
-                </div>
-
-                <div className="w-full sm:w-auto">
-                  <button className="inline-flex items-center justify-center px-4 py-2 bg-[#71BF44] text-white rounded w-full sm:w-auto">
-                    Start AI Response
+                    {pdfDownloading ? "Generating PDF..." : "Download PDF"}
                   </button>
                 </div>
 

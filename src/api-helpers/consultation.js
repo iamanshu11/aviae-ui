@@ -470,3 +470,160 @@ export const getSoapNote = async (consultationId) => {
     return { success: false, error: err.message };
   }
 };
+
+/**
+ * ─────────────────────────────────────────────
+ * Generate PDF from SOAP note
+ * POST /consultations/:id/generate-pdf
+ * ─────────────────────────────────────────────
+ */
+export const generatePDF = async (consultationId) => {
+  try {
+    const token = getAuthToken();
+    if (!token) throw new Error("Authentication required");
+
+    console.info(
+      "Frontend: POST /api/v1/consultations/:id/generate-pdf - request",
+      { consultationId }
+    );
+
+    const res = await fetch(
+      `${API_BASE_URL}/consultations/${consultationId}/generate-pdf`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      }
+    );
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      console.info(
+        "Frontend: POST /api/v1/consultations/:id/generate-pdf - response",
+        { status: res.status, error: data?.error || data?.message }
+      );
+      // If PDF already exists (400 error), that's okay - continue to download
+      if (res.status === 400 && data?.error?.includes("SOAP note not found")) {
+        throw new Error(data.error || "SOAP note not found. Please generate SOAP note first.");
+      }
+      throw new Error(data?.error || data?.message || "Failed to generate PDF");
+    }
+
+    console.info(
+      "Frontend: POST /api/v1/consultations/:id/generate-pdf - response",
+      { status: res.status, filename: data?.filename }
+    );
+
+    return { success: true, data };
+  } catch (err) {
+    console.error("Generate PDF Error:", err);
+    return { success: false, error: err.message };
+  }
+};
+
+/**
+ * ─────────────────────────────────────────────
+ * Download PDF file
+ * GET /consultations/:id/download-pdf
+ * ─────────────────────────────────────────────
+ */
+export const downloadPDF = async (consultationId) => {
+  try {
+    const token = getAuthToken();
+    if (!token) throw new Error("Authentication required");
+
+    console.info(
+      "Frontend: GET /api/v1/consultations/:id/download-pdf - request",
+      { consultationId }
+    );
+
+    const res = await fetch(
+      `${API_BASE_URL}/consultations/${consultationId}/download-pdf`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      }
+    );
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      console.info(
+        "Frontend: GET /api/v1/consultations/:id/download-pdf - response",
+        { status: res.status, error: errorData?.error || errorData?.message }
+      );
+      throw new Error(errorData?.error || errorData?.message || "Failed to download PDF");
+    }
+
+    // Get the blob
+    const blob = await res.blob();
+    
+    // Extract filename from Content-Disposition header or use default
+    const contentDisposition = res.headers.get("Content-Disposition");
+    let filename = "consultation.pdf";
+    if (contentDisposition) {
+      // Match quoted filename: filename="example.pdf" or filename*=UTF-8''example.pdf
+      // Use non-greedy match to stop at semicolon or end of string
+      let filenameMatch = contentDisposition.match(/filename\*?=["']?([^"';]+?)["']?(?:;|$)/i);
+      if (!filenameMatch) {
+        // Try without quotes
+        filenameMatch = contentDisposition.match(/filename\*?=([^;]+)/i);
+      }
+      if (filenameMatch && filenameMatch[1]) {
+        let extractedFilename = filenameMatch[1].trim();
+        // Handle RFC 5987 encoded filenames (filename*=UTF-8''example.pdf)
+        if (extractedFilename.startsWith("UTF-8''")) {
+          extractedFilename = decodeURIComponent(extractedFilename.substring(7));
+        }
+        // Remove any trailing underscores, spaces, or other unwanted characters FIRST
+        extractedFilename = extractedFilename.trim().replace(/[_\s]+$/, '');
+        
+        // Extract base name and extension separately for better control
+        const lastDotIndex = extractedFilename.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+          // Has an extension
+          let baseName = extractedFilename.substring(0, lastDotIndex);
+          let extension = extractedFilename.substring(lastDotIndex).toLowerCase();
+          
+          // Clean base name - remove any remaining trailing underscores and spaces
+          baseName = baseName.replace(/[_\s]+$/, '');
+          
+          // Ensure extension is .pdf
+          extension = '.pdf';
+          
+          filename = baseName + extension;
+        } else {
+          // No extension, clean and add .pdf
+          extractedFilename = extractedFilename.replace(/[_\s]+$/, '');
+          filename = extractedFilename + '.pdf';
+        }
+      }
+    }
+
+    // Create download link and trigger download
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    console.info(
+      "Frontend: GET /api/v1/consultations/:id/download-pdf - response",
+      { status: res.status, filename }
+    );
+
+    return { success: true, filename };
+  } catch (err) {
+    console.error("Download PDF Error:", err);
+    return { success: false, error: err.message };
+  }
+};

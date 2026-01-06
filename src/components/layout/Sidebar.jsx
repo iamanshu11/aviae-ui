@@ -79,8 +79,8 @@ export default function Sidebar({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-5 border-b">
           <div className="flex items-center gap-3">
-            <img src="/img/logo.svg" alt="Pharmbot Logo" className="h-8" />
-            <h2 className="text-2xl font-bold text-[#71BF44]">Pharmbot</h2>
+            <img src="/img/logo.png" alt="Pharmbot Logo" className="h-8" />
+            {/* <h2 className="text-2xl font-bold text-[#71BF44]">Pharmbot</h2> */}
           </div>
           <button
             className="lg:hidden text-gray-400 hover:text-red-400"
