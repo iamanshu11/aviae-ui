@@ -6,6 +6,9 @@ import AdminDashboardView from "../views/admin/AdminDashboardView";
 export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(isAdminAuthenticated());
 
+  console.log('AdminPage: isAdminAuthenticated:', isAdminAuthenticated());
+  console.log('AdminPage: isLoggedIn state:', isLoggedIn);
+
   return (
     <>
       {isLoggedIn ? (

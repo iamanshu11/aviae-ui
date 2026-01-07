@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Eye } from "lucide-react";
 import {
   adminLogout,
   listPharmacistsAPI,
@@ -31,18 +32,66 @@ export default function AdminDashboardView() {
   const [editingRedFlag, setEditingRedFlag] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
+  const downloadPDF = async (consultationId) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/consultations/${consultationId}/download-pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('PDF download failed:', response.status, errorData);
+        throw new Error(errorData?.error || errorData?.message || 'Failed to download PDF');
+      }
+
+      // Get the blob
+      const blob = await response.blob();
+
+      // Extract filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'consultation.pdf';
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename\*?=["']?([^"';]+?)["']?(?:;|$)/i);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].trim();
+        }
+      }
+
+      // Create download link and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      console.log('PDF downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again.');
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         setError("");
 
+        console.log('AdminDashboard: Starting to fetch data');
+
         const [
           pharmacistsData,
           symptomsData,
           medicationsData,
           redFlagsData,
-          consultationsData,
+          consultations,
         ] = await Promise.all([
           listPharmacistsAPI(),
           listSymptomsAPI(),
@@ -51,11 +100,14 @@ export default function AdminDashboardView() {
           listConsultationsAPI(),
         ]);
 
+        console.log('AdminDashboard: API responses received');
+        console.log('Consultations data:', consultations);
+
         setPharmacists(pharmacistsData);
         setSymptoms(symptomsData);
         setMedications(medicationsData);
         setRedFlags(redFlagsData);
-        setConsultations(consultationsData);
+        setConsultations(consultations);
       } catch (err) {
         console.error("Error fetching admin data:", err);
         setError(err.message || "Failed to fetch admin data");
@@ -337,14 +389,24 @@ export default function AdminDashboardView() {
           <h4 className="text-lg font-bold mb-3">Consultations</h4>
           <div className="overflow-auto max-h-64">
             <table className="w-full text-left text-sm">
-              <thead className="text-slate-400 text-xs uppercase"><tr><th>Ref</th><th>Pharmacist</th><th>Status</th><th>Started</th></tr></thead>
+              <thead className="text-slate-400 text-xs uppercase"><tr><th>Ref</th><th>Name</th><th>Pharmacist</th><th>Status</th><th>Started</th><th className="text-right">Actions</th></tr></thead>
               <tbody>
                 {(Array.isArray(consultations) ? consultations : []).map(c => (
                   <tr key={c.id} className="border-t border-slate-800">
                     <td className="py-2">{c.consultation_ref}</td>
-                    <td className="py-2">{c.pharmacist_id}</td>
+                    <td className="py-2">{c.patient_name || "Unknown"}</td>
+                    <td className="py-2">{c.pharmacist_name || c.pharmacist_id}</td>
                     <td className="py-2">{c.status}</td>
                     <td className="py-2">{c.started_at ? new Date(c.started_at).toLocaleString() : ''}</td>
+                    <td className="py-2 text-right">
+                      <button
+                        onClick={() => downloadPDF(c.id)}
+                        className="text-cyan-400 hover:text-cyan-300 text-xs font-bold tracking-wide transition-colors flex items-center gap-1"
+                      >
+                        <Eye size={14} />
+                        PDF
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

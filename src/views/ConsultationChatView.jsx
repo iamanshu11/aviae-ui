@@ -35,12 +35,16 @@ const ConsultationChatView = ({
     allergy_details: "",
     recent_antibiotics: "",
     recent_assessment: "",
+    pregnant_or_breastfeeding: "",
+    is_new_mother: null,
   });
   const [outcome, setOutcome] = useState(null);
   const [soapNote, setSoapNote] = useState(null);
   const [finalized, setFinalized] = useState(false);
   const [showPostActions, setShowPostActions] = useState(false);
   const [pdfDownloading, setPdfDownloading] = useState(false);
+  const [patientData, setPatientData] = useState(null);
+  const [patientDetails, setPatientDetails] = useState(null);
 
 
   const messagesEndRef = useRef(null);
@@ -48,6 +52,27 @@ const ConsultationChatView = ({
     () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }),
     [messages]
   );
+
+  // Fetch patient data
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      if (consultationData?.consultation_id) {
+        try {
+          const { getConsultationDetail } = await import("../api-helpers/consultation");
+          const res = await getConsultationDetail(consultationData.consultation_id);
+          if (res.success && res.data?.consult) {
+            console.log("Patient data fetched:", res.data.consult);
+            setPatientData(res.data.consult);
+          } else {
+            console.log("Failed to fetch patient data:", res);
+          }
+        } catch (e) {
+          console.error("Failed to fetch patient data:", e);
+        }
+      }
+    };
+    fetchPatientData();
+  }, [consultationData?.consultation_id]);
 
   /* ---------------- Helpers ---------------- */
   const toggleSymptom = (label) => {
@@ -101,18 +126,12 @@ const ConsultationChatView = ({
   /* ---------------- Submit Red Flags ---------------- */
   const submitRedFlags = async () => {
     try {
-      const { updateRedFlags, updateExam } = await import(
+      const { updateRedFlags } = await import(
         "../api-helpers/consultation"
       );
       await updateRedFlags(consultationData.consultation_id, {
         answers: redFlags,
         override: { active: false, justification: null },
-      });
-      await updateExam(consultationData.consultation_id, {
-        fever_history: "No",
-        tender_lymph_nodes: "Yes",
-        tonsillar_exudate: "Yes",
-        cough_status: "NoCough",
       });
       setMessages((prev) => [
         ...prev,
@@ -150,6 +169,8 @@ const ConsultationChatView = ({
             : null,
         recent_antibiotics: historyAnswers.recent_antibiotics,
         recent_assessment: historyAnswers.recent_assessment,
+        pregnant_or_breastfeeding: historyAnswers.pregnant_or_breastfeeding || undefined,
+        is_new_mother: historyAnswers.is_new_mother ?? undefined,
       });
 
       // Outcome
@@ -165,8 +186,13 @@ const ConsultationChatView = ({
       ]);
 
       // Finalize
-      await finalizeConsultation(consultationData.consultation_id);
+      const finalizeRes = await finalizeConsultation(consultationData.consultation_id);
       setFinalized(true);
+      
+      // Store patient details from finalize response
+      if (finalizeRes.data?.patient_details) {
+        setPatientDetails(finalizeRes.data.patient_details);
+      }
 
       // SOAP
       const soapRes = await getSoapNote(consultationData.consultation_id);
@@ -529,6 +555,114 @@ const ConsultationChatView = ({
                 <option value="NotSure">Not sure</option>
               </select>
             </div>
+
+            {/* Pregnancy/Breastfeeding question - only for female patients 25+ */}
+            {(() => {
+              const shouldShowPregnancy = patientData?.patient_sex === "Female" && patientData?.patient_age >= 25;
+              console.log("Pregnancy question condition:", {
+                patientSex: patientData?.patient_sex,
+                patientAge: patientData?.patient_age,
+                shouldShow: shouldShowPregnancy
+              });
+              return shouldShowPregnancy && (
+                <div className="mb-4">
+                  <label className="block text-xs text-slate-300 mb-1">
+                    Are you pregnant or breastfeeding?
+                  </label>
+                <div className="flex gap-3 mb-2">
+                  <button
+                    className={`px-3 py-1 rounded ${
+                      historyAnswers.pregnant_or_breastfeeding === "Yes"
+                        ? "bg-rose-600 text-white"
+                        : "bg-slate-800 text-slate-200"
+                    }`}
+                    onClick={() =>
+                      setHistoryAnswers((a) => ({
+                        ...a,
+                        pregnant_or_breastfeeding: "Yes",
+                      }))
+                    }
+                  >
+                    Yes
+                  </button>
+                  <button
+                    className={`px-3 py-1 rounded ${
+                      historyAnswers.pregnant_or_breastfeeding === "No"
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-800 text-slate-200"
+                    }`}
+                    onClick={() =>
+                      setHistoryAnswers((a) => ({
+                        ...a,
+                        pregnant_or_breastfeeding: "No",
+                        is_new_mother: null, // Reset if changing answer
+                      }))
+                    }
+                  >
+                    No
+                  </button>
+                  <button
+                    className={`px-3 py-1 rounded ${
+                      historyAnswers.pregnant_or_breastfeeding === "NotSure"
+                        ? "bg-amber-600 text-white"
+                        : "bg-slate-800 text-slate-200"
+                    }`}
+                    onClick={() =>
+                      setHistoryAnswers((a) => ({
+                        ...a,
+                        pregnant_or_breastfeeding: "NotSure",
+                        is_new_mother: null, // Reset if changing answer
+                      }))
+                    }
+                  >
+                    Not sure
+                  </button>
+                </div>
+
+                {/* Follow-up question for new mothers */}
+                {historyAnswers.pregnant_or_breastfeeding === "Yes" && (
+                  <div className="mt-3 p-3 bg-slate-700 rounded">
+                    <label className="block text-xs text-slate-300 mb-2">
+                      Are you a new mother (baby less than 6 months old)?
+                    </label>
+                    <div className="flex gap-3">
+                      <button
+                        className={`px-3 py-1 rounded ${
+                          historyAnswers.is_new_mother === true
+                            ? "bg-rose-600 text-white"
+                            : "bg-slate-600 text-slate-200"
+                        }`}
+                        onClick={() =>
+                          setHistoryAnswers((a) => ({
+                            ...a,
+                            is_new_mother: true,
+                          }))
+                        }
+                      >
+                        Yes
+                      </button>
+                      <button
+                        className={`px-3 py-1 rounded ${
+                          historyAnswers.is_new_mother === false
+                            ? "bg-emerald-600 text-white"
+                            : "bg-slate-600 text-slate-200"
+                        }`}
+                        onClick={() =>
+                          setHistoryAnswers((a) => ({
+                            ...a,
+                            is_new_mother: false,
+                          }))
+                        }
+                      >
+                        No
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+            })()}
+
             <button
               onClick={submitHistory}
               className="px-4 py-2 bg-green-600 text-white rounded"
@@ -539,7 +673,9 @@ const ConsultationChatView = ({
                 (historyAnswers.allergies_present === "yes" &&
                   !historyAnswers.allergy_details) ||
                 !historyAnswers.recent_antibiotics ||
-                !historyAnswers.recent_assessment
+                !historyAnswers.recent_assessment ||
+                (patientData?.patient_sex === "Female" && patientData?.patient_age >= 25 && !historyAnswers.pregnant_or_breastfeeding) ||
+                (historyAnswers.pregnant_or_breastfeeding === "Yes" && historyAnswers.is_new_mother === null)
               }
             >
               Submit history
@@ -576,6 +712,28 @@ const ConsultationChatView = ({
             <h4 className="text-lg font-bold text-emerald-400 mb-2">
               Consultation Complete
             </h4>
+            
+            {/* Patient Details Section */}
+            {patientDetails && (
+              <div className="mb-4 p-4 bg-slate-800 rounded-xl">
+                <h5 className="text-sm font-semibold text-slate-300 mb-2">Patient Details</h5>
+                <div className="text-sm text-slate-200 space-y-1">
+                  {patientDetails.name && (
+                    <div><span className="font-medium">Name:</span> {patientDetails.name}</div>
+                  )}
+                  {patientDetails.age && (
+                    <div><span className="font-medium">Age:</span> {patientDetails.age} years</div>
+                  )}
+                  {patientDetails.sex && (
+                    <div><span className="font-medium">Sex:</span> {patientDetails.sex}</div>
+                  )}
+                  {patientDetails.consent && (
+                    <div><span className="font-medium">Consent:</span> {patientDetails.consent}</div>
+                  )}
+                </div>
+              </div>
+            )}
+            
             {outcome && (
               <div className="text-sm text-slate-300 mb-3">
                 Outcome:{" "}

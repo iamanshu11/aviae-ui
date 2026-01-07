@@ -38,6 +38,7 @@ export const isAdminAuthenticated = () => !!getAdminToken();
 
 const getAdminHeaders = () => {
   const token = getAdminToken();
+  console.log('Admin API: Token retrieved:', token ? 'present' : 'missing');
   if (!token) throw new Error('Admin not authenticated');
   return {
     'Content-Type': 'application/json',
@@ -199,11 +200,14 @@ export const deleteRedFlagAPI = async (id) => {
 
 // Consultations
 export const listConsultationsAPI = async () => {
+  console.log('Admin API: Calling listConsultationsAPI');
   const res = await fetch(`${API_BASE_URL}/admin/consultations`, {
     headers: getAdminHeaders(),
   });
+  console.log('Admin API: listConsultationsAPI response status:', res.status);
   if (!res.ok) throw new Error("Failed to fetch consultations");
   const payload = await res.json();
+  console.log('Admin API: listConsultationsAPI payload:', payload);
   // API returns { consultations: [...] }
   return payload.consultations || [];
 };

@@ -627,3 +627,54 @@ export const downloadPDF = async (consultationId) => {
     return { success: false, error: err.message };
   }
 };
+
+/**
+ * ─────────────────────────────────────────────
+ * Get consultation details
+ * GET /consultations/:id
+ * ─────────────────────────────────────────────
+ */
+export const getConsultationDetail = async (consultationId) => {
+  try {
+    const token = getAuthToken();
+    if (!token) throw new Error("Authentication required");
+
+    console.info(
+      "Frontend: GET /api/v1/consultations/:id - request",
+      { consultationId }
+    );
+
+    const response = await fetch(
+      `${API_BASE_URL}/consultations/${consultationId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      console.info(
+        "Frontend: GET /api/v1/consultations/:id - response",
+        { status: response.status, error: err?.message }
+      );
+      throw new Error(err?.message || "Failed to fetch consultation details");
+    }
+
+    const data = await response.json();
+
+    console.info(
+      "Frontend: GET /api/v1/consultations/:id - response",
+      { status: response.status }
+    );
+
+    return { success: true, data };
+  } catch (err) {
+    console.error("Get Consultation Detail Error:", err);
+    return { success: false, error: err.message };
+  }
+};

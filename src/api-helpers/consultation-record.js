@@ -6,7 +6,6 @@ export const getUserHeaders = () => {
   if (!token) {
     throw new Error("User not authenticated");
   }
-
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,

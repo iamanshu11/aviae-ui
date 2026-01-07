@@ -9,6 +9,8 @@ export default function AdminLoginView({ onSuccess }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [useAdminKey, setUseAdminKey] = useState(false);
+  const [adminKey, setAdminKey] = useState('');
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -31,7 +33,8 @@ export default function AdminLoginView({ onSuccess }) {
     setLoading(true);
     setError('');
 
-    const res = await adminLoginAPI({ username, password });
+    const credentials = useAdminKey ? { admin_key: adminKey } : { username, password };
+    const res = await adminLoginAPI(credentials);
     setLoading(false);
 
     if (res.success) {
@@ -105,38 +108,66 @@ export default function AdminLoginView({ onSuccess }) {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Username */}
-              <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-300"></div>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Admin username"
-                  disabled={loading}
-                  className="relative w-full px-4 py-3 bg-slate-800 border border-purple-500/30 text-white placeholder-gray-500 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 font-mono"
-                />
-              </div>
-
-              {/* Password */}
-              <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-300"></div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Admin password"
-                  disabled={loading}
-                  className="relative w-full px-4 py-3 pr-12 bg-slate-800 border border-purple-500/30 text-white placeholder-gray-500 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 font-mono"
-                />
+              {/* Login Method Toggle */}
+              <div className="flex justify-center mb-4">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-pink-400 transition-colors cursor-pointer"
+                  onClick={() => setUseAdminKey(!useAdminKey)}
+                  className="text-sm text-purple-400 hover:text-pink-400 transition-colors underline"
                 >
-                  {showPassword ? '🔓' : '🔐'}
+                  {useAdminKey ? 'Use Username/Password' : 'Use Admin Key'}
                 </button>
               </div>
+
+              {useAdminKey ? (
+                /* Admin Key */
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-300"></div>
+                  <input
+                    type="password"
+                    value={adminKey}
+                    onChange={(e) => setAdminKey(e.target.value)}
+                    placeholder="Admin key"
+                    disabled={loading}
+                    className="relative w-full px-4 py-3 bg-slate-800 border border-purple-500/30 text-white placeholder-gray-500 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 font-mono"
+                  />
+                </div>
+              ) : (
+                <>
+                  {/* Username */}
+                  <div className="relative group">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-300"></div>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Admin username"
+                      disabled={loading}
+                      className="relative w-full px-4 py-3 bg-slate-800 border border-purple-500/30 text-white placeholder-gray-500 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 font-mono"
+                    />
+                  </div>
+
+                  {/* Password */}
+                  <div className="relative group">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg blur opacity-0 group-focus-within:opacity-100 transition duration-300"></div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Admin password"
+                      disabled={loading}
+                      className="relative w-full px-4 py-3 pr-12 bg-slate-800 border border-purple-500/30 text-white placeholder-gray-500 rounded-lg focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all duration-300 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-pink-400 transition-colors cursor-pointer"
+                    >
+                      {showPassword ? '🔓' : '🔐'}
+                    </button>
+                  </div>
+                </>
+              )}
 
               {/* Error message */}
               {error && (

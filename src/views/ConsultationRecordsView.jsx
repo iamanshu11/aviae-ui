@@ -1,12 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { Filter, Download, FileText, ChevronRight } from "lucide-react";
-import ConsultationModal from "../components/modals/ConsultationModal";
+import { Filter, Download, FileText, ChevronRight, Eye } from "lucide-react";
 import { listConsultationRecordsAPI } from "../api-helpers/consultation-record";
 
 const ConsultationRecordsView = ({ addToast }) => {
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedConsult, setSelectedConsult] = useState(null);
+
+  const downloadPDF = async (consultationId, consultationRef) => {
+    try {
+      const { downloadPDF } = await import("../api-helpers/consultation");
+      await downloadPDF(consultationId);
+      addToast?.(`PDF downloaded for ${consultationRef}`, "success");
+    } catch (err) {
+      console.error("Failed to download PDF", err);
+      addToast?.(err.message || "Failed to download PDF", "error");
+    }
+  };
 
   useEffect(() => {
     const fetchConsultations = async () => {
@@ -59,13 +68,6 @@ const ConsultationRecordsView = ({ addToast }) => {
 
   return (
     <div className="space-y-4 sm:space-y-6 w-full min-w-0">
-      {/* Modal */}
-      <ConsultationModal
-        isOpen={!!selectedConsult}
-        onClose={() => setSelectedConsult(null)}
-        consultation={selectedConsult}
-      />
-
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
         <div className="flex-1 min-w-0">
@@ -116,6 +118,7 @@ const ConsultationRecordsView = ({ addToast }) => {
                 <thead className="sticky top-0 bg-[#0A0F1E] z-10">
                   <tr className="border-b border-white/10 text-slate-400 text-xs uppercase tracking-wider">
                     <th className="pb-4 pl-4 font-semibold">Reference</th>
+                    <th className="pb-4 font-semibold">Name</th>
                     <th className="pb-4 font-semibold">Status</th>
                     <th className="pb-4 font-semibold">Started</th>
                     <th className="pb-4 text-right pr-4 font-semibold">Actions</th>
@@ -132,6 +135,10 @@ const ConsultationRecordsView = ({ addToast }) => {
                         {c.consultation_ref}
                       </td>
 
+                      <td className="py-4 text-white whitespace-nowrap">
+                        {c.patient_name || "Unknown"}
+                      </td>
+
                       <td className="py-4 whitespace-nowrap">
                         <StatusBadge status={c.status} />
                       </td>
@@ -144,10 +151,11 @@ const ConsultationRecordsView = ({ addToast }) => {
 
                       <td className="py-4 text-right pr-4 whitespace-nowrap">
                         <button
-                          onClick={() => setSelectedConsult(c)}
-                          className="text-cyan-400 hover:text-cyan-300 text-xs font-bold tracking-wide transition-colors"
+                          onClick={() => downloadPDF(c.id)}
+                          className="text-cyan-400 hover:text-cyan-300 text-xs font-bold tracking-wide transition-colors flex items-center gap-1"
                         >
-                          VIEW
+                          <Eye size={14} />
+                          PDF
                         </button>
                       </td>
                     </tr>
@@ -161,7 +169,7 @@ const ConsultationRecordsView = ({ addToast }) => {
               {consultations.map((c) => (
                 <button
                   key={c.id}
-                  onClick={() => setSelectedConsult(c)}
+                  onClick={() => downloadPDF(c.id)}
                   className="w-full bg-white/[0.02] hover:bg-white/5 border border-white/10 rounded-xl p-4 transition-all text-left group"
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
@@ -170,10 +178,13 @@ const ConsultationRecordsView = ({ addToast }) => {
                         {c.consultation_ref}
                       </p>
                       <p className="text-white font-semibold text-sm break-words">
-                        Reference #{c.consultation_ref?.split("-")[0] || "—"}
+                        {c.patient_name || "Unknown Patient"}
                       </p>
                     </div>
-                    <ChevronRight className="text-slate-400 group-hover:text-cyan-400 flex-shrink-0 mt-0.5 transition-colors" size={18} />
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Eye className="text-cyan-400" size={16} />
+                      <ChevronRight className="text-slate-400 group-hover:text-cyan-400 flex-shrink-0 mt-0.5 transition-colors" size={18} />
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
